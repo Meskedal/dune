@@ -116,9 +116,12 @@ namespace Monitors
           requestDeactivation();
           return;
         }
-        m_args.N_msgs--;
-        spew("Announcement %s, left: %u", msg->getName(), m_args.N_msgs);
         
+        m_args.N_msgs--;
+        std::stringstream ss;
+        std::ostream *os = &ss;
+        msg->toJSON(*os);
+        spew("Announcement %s", ss.str().c_str(), m_args.N_msgs);
       }
       //! Main loop.
       void
