@@ -121,7 +121,7 @@ namespace Monitors
         std::stringstream ss;
         std::ostream *os = &ss;
         msg->toJSON(*os);
-        spew("Announcement %s", ss.str().c_str(), m_args.N_msgs);
+        inf("Announcement\n%s", ss.str().c_str());
       }
       //! Main loop.
       void
