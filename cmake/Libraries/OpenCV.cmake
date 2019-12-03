@@ -47,6 +47,8 @@ if(OPENCV)
     dune_add_lib(opencv_objdetect)
     dune_add_lib(opencv_photo)
     dune_add_lib(opencv_stitching)
+    dune_add_lib(opencv_videoio)
+    dune_add_lib(opencv_aruco)
 
     #dune_add_lib(opencv_ts)
     #dune_add_lib(opencv_videostab)
