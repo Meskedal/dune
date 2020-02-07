@@ -31,6 +31,7 @@
 #include <DUNE/DUNE.hpp>
 #include "opencv2/opencv.hpp"
 #include "opencv2/aruco.hpp"
+#include "tello/Tello.hpp"
 
 namespace Sensors
 {
@@ -52,7 +53,17 @@ namespace Sensors
       Arguments m_args;
 
       cv::VideoCapture m_cap;
-      cv::Mat m_frame, m_frame_detection;
+      cv::Mat m_frame_raw, m_frame_filtered;
+
+      Tello m_tello;
+
+      const double m_low_h = 5;
+      const double m_low_s = 50;
+      const double m_low_v = 50;
+      const double m_high_h = 15;
+      const double m_high_s = 255;
+      const double m_high_v = 255;
+
       cv::Ptr<cv::aruco::Dictionary> m_arUco_dict = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
       const std::string m_input_window_name = "Input Feed";
       const std::string m_detection_window_name = "Detection Feed";
@@ -63,10 +74,11 @@ namespace Sensors
       Task(const std::string& name, Tasks::Context& ctx):
         DUNE::Tasks::Task(name, ctx)
       {
-        param("Video device path", m_args.video_device_path)
+        param("Video device", m_args.video_device_path)
         .defaultValue("/dev/video0");
-        spew(m_args.video_device_path.c_str());
-        m_cap.open("/dev/video0");
+        if (m_args.video_device_path.length()) {
+          m_cap.open(m_args.video_device_path, cv::CAP_FFMPEG);
+        }
 
         cv::namedWindow(m_input_window_name);
         cv::namedWindow(m_detection_window_name);
@@ -116,38 +128,48 @@ namespace Sensors
       onMain(void)
       {
         
+        if(m_args.video_device_path.length() && !m_cap.isOpened()){
+          spew("Opening Device: %s",  m_args.video_device_path.c_str());
+          m_cap.open(m_args.video_device_path);
+        } 
 
         if(!m_cap.isOpened()){
-          err("Error opening video stream or file");
+          war("Error opening video stream or file: %s", m_args.video_device_path.c_str());
+          waitForMessages(1.0);
+          return;
         }
+
         // Check if camera opened successfully
         while (!stopping())
         {
           // Create a VideoCapture object and open the input file
           // If the input is the web camera, pass 0 instead of the video file name
             
-
           // spew("Main Loop");
-          m_cap >> m_frame;
-          m_frame_detection = m_frame;
+          m_cap >> m_frame_raw;
 
-          // Capture frame-by-frame
         
           // If the frame is empty, break immediately
-          if (m_frame.empty()){
+          if (m_frame_raw.empty()){
             break;
           }
 
-          cv::imshow("Input Feed", m_frame);
+          m_tello.receive_video();
+          // Convert frame to HSV
+          // cv::cvtColor(m_frame_raw, m_frame_filtered, cv::COLOR_BGR2HSV);
+
+          // cv::inRange(m_frame_filtered, cv::Scalar(m_low_h, m_low_s, m_low_v),cv::Scalar(m_high_h, m_high_s, m_high_v), m_frame_filtered);
+
+          m_frame_filtered = m_frame_raw;
           std::vector<int> ids;
           std::vector<std::vector<cv::Point2f> > corners;
-          cv::aruco::detectMarkers(m_frame_detection, m_arUco_dict, corners, ids);          
+          cv::aruco::detectMarkers(m_frame_filtered, m_arUco_dict, corners, ids);          
       
           if (ids.size() > 0) {
-            cv::aruco::drawDetectedMarkers(m_frame_detection, corners, ids);
+            cv::aruco::drawDetectedMarkers(m_frame_raw, corners, ids);
           }
-          cv::imshow(m_input_window_name, m_frame);
-          cv::imshow(m_detection_window_name, m_frame_detection);
+          cv::imshow(m_input_window_name, m_frame_raw);
+          cv::imshow(m_detection_window_name, m_frame_filtered);
 
 
           // Press  ESC on keyboard to exit
@@ -160,7 +182,7 @@ namespace Sensors
      
           // waitForMessages(1.0);
         }
-        // // When everything done, release the video capture object
+
       }
     };
   }
